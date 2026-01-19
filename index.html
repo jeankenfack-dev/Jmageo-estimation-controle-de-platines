@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JMAGEO - Estimez le coût de notre intervention</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        background-color: #f5f5f5;
+    }
+    .container {
+        max-width: 600px;
+        margin: 40px auto;
+        background: #ffffff;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+        border-left: 6px solid #a84c30;
+    }
+    h1 {
+        text-align: center;
+        color: #a84c30;
+        font-size: 1.5em;
+        margin-bottom: 20px;
+    }
+    label {
+        display: block;
+        margin-top: 15px;
+        font-weight: bold;
+        color: #6d6e71;
+    }
+    input, select {
+        width: 100%;
+        padding: 10px;
+        margin-top: 5px;
+        border-radius: 8px;
+        border: 1px solid #cccccc;
+        font-size: 1em;
+        box-sizing: border-box;
+        background-color: #f0f0f0;
+        color: #333;
+    }
+    button {
+        width: 100%;
+        padding: 12px;
+        margin-top: 20px;
+        border-radius: 8px;
+        border: none;
+        background-color: #a84c30;
+        color: white;
+        font-size: 1.1em;
+        cursor: pointer;
+        transition: background 0.3s, transform 0.2s;
+    }
+    button:hover:enabled {
+        background-color: #922f1f;
+        transform: scale(1.02);
+    }
+    button:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+        transform: none;
+    }
+    #result {
+        margin-top: 20px;
+        font-weight: bold;
+        color: #a84c30;
+        font-size: 1.1em;
+        background-color: #fbe9e6;
+        padding: 10px;
+        border-radius: 8px;
+    }
+    #logo {
+        display: block;
+        margin: 0 auto 20px auto;
+        max-width: 180px;
+    }
+    .warning {
+        color: #ffffff;
+        font-weight: bold;
+        background-color: #6d6e71;
+        padding: 10px;
+        border-radius: 8px;
+        margin-top: 10px;
+    }
+    .info {
+        font-size: 0.85em;
+        margin-top: 15px;
+        color: #333;
+        line-height: 1.4em;
+    }
+    @media (max-width: 480px) {
+        .container {
+            margin: 20px;
+            padding: 20px;
+        }
+        h1 {
+            font-size: 1.3em;
+        }
+        button {
+            font-size: 1em;
+        }
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    <img id="logo" src="logo_jmageo.png" alt="Logo JMAGEO">
+    <h1>JMAGEO - Estimez le coût de notre intervention en contrôle de platines</h1>
+
+    <label for="adresse">Adresse ou ville du chantier :</label>
+    <input type="text" id="adresse" placeholder="Ex: 75001 Paris">
+
+    <label for="hauteur">La hauteur des platines à relever est-elle inférieure à 1 mètre par rapport au sol ou plateforme ?</label>
+    <select id="hauteur">
+        <option value="">Sélectionnez</option>
+        <option value="oui">Oui</option>
+        <option value="non">Non</option>
+    </select>
+
+    <!-- Champ toujours visible -->
+    <label for="n">Nombre de platines à relever :</label>
+    <input type="number" id="n" min="1" placeholder="Ex: 50">
+
+    <!-- Bouton désactivé par défaut -->
+    <button id="btnEstimer" onclick="calculerPrix()" disabled>Estimer le prix</button>
+
+    <div id="result"></div>
+    <div class="info">
+        Le prix est estimatif et correspond à un déplacement sur le terrain, toutes les platines doivent être posées au jour de notre intervention.<br>
+        Dans le cas contraire, veuillez nous écrire à : <a href="mailto:contact@jmageo.com">contact@jmageo.com</a>
+    </div>
+</div>
+
+<script>
+const adresseSociete = "37 Rue du Millet, 77240 VERT-SAINT-DENIS, France";
+
+// conversion degrés -> radians
+function toRad(deg) {
+    return deg * Math.PI / 180;
+}
+
+// distance à vol d'oiseau
+function distanceHaversine(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+// obtenir coords via Nominatim
+async function getCoords(address) {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
+    const response = await fetch(url, {headers: {'User-Agent': 'JMAGEO-App'}});
+    const data = await response.json();
+    if(data.length > 0) {
+        return {lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon)};
+    } else {
+        alert("Adresse introuvable. Merci de vérifier.");
+        return null;
+    }
+}
+
+// gestion bouton selon hauteur
+document.getElementById('hauteur').addEventListener('change', function() {
+    const btn = document.getElementById('btnEstimer');
+    const resultDiv = document.getElementById('result');
+    if (this.value === 'oui') {
+        btn.disabled = false;
+        resultDiv.innerHTML = '';
+    } else if (this.value === 'non') {
+        btn.disabled = true;
+        resultDiv.innerHTML = '<div class="warning">Hauteur > 1 mètre : veuillez nous contacter par email à contact@jmageo.com</div>';
+    } else {
+        btn.disabled = true;
+        resultDiv.innerHTML = '';
+    }
+});
+
+// calcul du prix
+async function calculerPrix() {
+    const adresseClient = document.getElementById('adresse').value.trim();
+    const n = parseInt(document.getElementById('n').value);
+
+    if (!adresseClient || !n) {
+        alert("Veuillez remplir tous les champs.");
+        return;
+    }
+
+    const coordsSociete = await getCoords(adresseSociete);
+    const coordsClient = await getCoords(adresseClient);
+    if(!coordsSociete || !coordsClient) return;
+
+    const km = distanceHaversine(coordsSociete.lat, coordsSociete.lon, coordsClient.lat, coordsClient.lon) * 1.2;
+
+    let prix = 300 + 3 * km + (n < 100 ? 12 * n : 11 * n);
+    prix = prix.toFixed(2);
+
+    document.getElementById('result').innerHTML = `Distance estimée : ${km.toFixed(2)} km <br> Prix estimatif : ${prix} €`;
+}
+</script>
+</body>
+</html>
